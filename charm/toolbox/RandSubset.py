@@ -6,17 +6,18 @@ Random Subset Sampling
 | Available at: http://dx.doi.org/10.1145/30401.315746
 
 :Authors: Krisztina Riebel-Charity and Mark Gondree
-:Date: 05/04/2013
+:Date: 05/31/2013
 """
 from charm.core.math.integer import integer,random
 
 class RandSubset:
-    """ Generate n random numbers in the range [0, r] using Floyd's algorithm.
-    """
     def __init__(self):
         return None
 
     def gen(self, n, r):
+        """ Generate n random numbers in the range [0, r] 
+        using Floyd's algorithm.
+        """
         if n > r+1: 
             print("There aren't %d numbers in the range [0, %d]" %(n, r))
             return None
