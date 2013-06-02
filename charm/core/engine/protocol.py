@@ -3,6 +3,8 @@
 
 from charm.core.engine.util import *
 from charm.toolbox.enum import Enum
+import struct, sys
+
 MAX_SIZE = 2048
 
 debug = False
@@ -120,25 +122,38 @@ class Protocol:
                self.cur_state = state_num
                break
         return None
-    
+ 
     def send_msg(self, object):
         # use socket to send message (check if serializaton is required)
         if self._socket != None:
             if self._serialize:
                 result = self._user_serialize(object)
-                self._socket.send(result)
             else:
                 result = self.serialize(object)
-                #print("DEBUG: send_msg : result =>", result)
-                self._socket.send(result)
+            self._socket.send(struct.pack('>i', len(result))+result)
+            #self._socket.send(result)
         return None
 
     def recv_msg(self):
         # read the socket and return the received message (check if deserialization)
         # is necessary
         if self._socket != None:
+            data = []; data_len = 0
+            size_data = sock_data = b''
+            recv_size = expect_size = MAX_SIZE
             # block until data is available or remote host closes connection
-            result = self._socket.recv(MAX_SIZE)
+            while data_len < expect_size:
+                sock_data = self._socket.recv(recv_size)
+                if not data:
+                    expect_size = struct.unpack('>i', sock_data[:4])[0]
+                    recv_size = expect_size
+                    if recv_size > MAX_SIZE:
+                        recv_size = MAX_SIZE
+                    data.append(sock_data[4:])
+                else:
+                    data.append(sock_data)
+                data_len = sum([len(i) for i in data])
+            result = b''.join(data)
             if result == '': return None
             else: 
                 if self._serialize:
@@ -146,7 +161,7 @@ class Protocol:
                 else: # default serialize call
                     return self.deserialize(result)
         return None
-    
+ 
 #    # serialize an object
 #    def serialize(self, object):
 #        if type(object) == str:
