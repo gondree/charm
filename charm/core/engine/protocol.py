@@ -131,7 +131,6 @@ class Protocol:
             else:
                 result = self.serialize(object)
             self._socket.send(struct.pack('>i', len(result))+result)
-            #self._socket.send(result)
         return None
 
     def recv_msg(self):
