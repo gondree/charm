@@ -28,6 +28,12 @@ def int2bytes(v):
     for r in int2bytes(v):
         yield r
 
+def prf_generator(num, prf, prime):
+    padding = PKCS7Padding(block_size = 16)
+    byte_val = int2bytes(int(num))
+    function = prf.encrypt(padding.encode(bytes(bytes(byte_val))))
+    sized = function[:len(str(prime))]
+    return int.from_bytes(sized, byteorder='big')
 
 class CPORpriv (PORbase):
   def __init__(self, common_input = None):
@@ -35,24 +41,28 @@ class CPORpriv (PORbase):
     self.mac_key_len = 1024
     self.prf_key_len = 256
     self.block_size = 4096
+    self.num_challenge_blocks = 512
     self.lambda_size = 80
     self.sector_size = (self.lambda_size - 1) / 8
     self.prime = randomPrime(self.lambda_size, 1)
-    self.padding = PKCS7Padding(block_size = 16)
     PORbase.__init__(self, common_input)
 
   def set_attributes(self, args):
     """ 
     Implements :py:func:`POR.PORbase.set_attributes()`
     """ 
-    if hasattr (args, 'mac_length'):
-      self.mac_key_len = args.mac_length 
-    if hasattr (args, 'enc_length'):
-      self.enc_key_len = args.enc_length 
-    if hasattr (args, 'prf_length'):
-      self.prf_key_len = args.prf_length
-    if hasattr (args, 'block_size'):
-      self.block_size = args.block_size
+    if hasattr(args, 'mac_length'):
+        self.mac_key_len = args.mac_length 
+    if hasattr(args, 'enc_length'):
+        self.enc_key_len = args.enc_length 
+    if hasattr(args, 'prf_length'):
+        self.prf_key_len = args.prf_length
+    if hasattr(args, 'block_size'):
+        self.block_size = args.block_size
+        print("Blocksize:", self.block_size)
+    if hasattr(args, 'num_chal_blocks'):
+        self.num_challenge_blocks = args.num_chal_blocks
+        print("Challenging", self.num_challenge_blocks, "blocks:")
     return None 
 
   def keyGen(self):
@@ -86,7 +96,7 @@ class CPORpriv (PORbase):
     # the number of sectors in a block
     num_sectors = int(self.block_size // self.sector_size)
     if (self.block_size % self.sector_size is not 0):
-      num_sectors += 1
+        num_sectors += 1
 
 
     f = open(filename, 'rb')
@@ -100,24 +110,24 @@ class CPORpriv (PORbase):
     print("Determining the number of blocks in the file...")
     num_blocks = Mprime // self.block_size
     if (Mprime % self.block_size is not 0):
-      num_blocks += 1 
+        num_blocks += 1 
 
     m = [[] for i in range(int(num_blocks))]
 
     print("Storing file blocks by sectors...")
     # Opening the file and storing the message.
     with open(filename, "rb") as f:
-      block = f.read(self.block_size)
-      i = 0
-      while block:
-        # parse out the sectors
-        sectors = bytearray(block) 
-        for j in range(int(num_sectors)):
-          jstart = j * self.sector_size 
-          jend = jstart + min(self.sector_size - 1, len (sectors) - jstart) 
-          m[i].append(bytes(sectors[int(jstart):int(jend)]))
         block = f.read(self.block_size)
-        i = i + 1
+        i = 0
+        while block:
+            # parse out the sectors
+            sectors = bytearray(block) 
+            for j in range(int(num_sectors)):
+                jstart = j * self.sector_size 
+                jend = jstart + min(self.sector_size - 1, len (sectors) - jstart) 
+                m[i].append(bytes(sectors[int(jstart):int(jend)]))
+            block = f.read(self.block_size)
+            i = i + 1
     
     
     #
@@ -144,13 +154,12 @@ class CPORpriv (PORbase):
     #
     # generate the sigmas
     #
-    print("Calculating sigmas...")
     sigmas =[] # for each block, a sigma is generated with a function using PRFkey on each block, adding the product of all the alphas, and the sectors
     for i in range(num_blocks):
-      am = [alpha[j] * int.from_bytes(m[i][j], byteorder='big') for j in range(len(m[i]))]
-      fkprf = int.from_bytes(prf.encrypt(self.padding.encode((i+1).to_bytes(1, byteorder='big'))), byteorder='big')
-      s = fkprf + sum(am) 
-      sigmas.append(s) 
+        am = [alpha[j] * int.from_bytes(m[i][j], byteorder='big') for j in range(len(m[i]))]
+        fkprf = prf_generator((i+1), prf, self.prime)
+        s = fkprf + sum(am) 
+        sigmas.append(s) 
     
     data = {}
     data["data"] = m 
@@ -174,16 +183,19 @@ class CPORpriv (PORbase):
     kprf = filestate["kprf"]
     alpha = filestate["alpha"]
 
-    check_set = g.gen(random.randint(1, num_blocks), (num_blocks - 1))
+    if(num_blocks < self.num_challenge_blocks):
+        challenge = num_blocks
+    else:
+        challenge = self.num_challenge_blocks
+    check_set = g.gen(challenge, (num_blocks - 1))
     # picks a random amount of blocks to check, making sure the amount of blocks
     # picked are within the num_block range
     NU =[int(integer(charm_random(self.prime))) for i in range(len(check_set))]
 
     Q = dict() # set of group of check_set and their corresponding NU values
 
-    for x in check_set:
-      x = x - 1 
-      Q[check_set[x]] = NU[x] 
+    for x in range(len(check_set)):
+        Q[check_set[x]] = NU[x] 
 
     challenge = Q 
     chalData = {}
@@ -208,7 +220,7 @@ class CPORpriv (PORbase):
     for j in range(len(m[0])):
         add = []
         for i in Q:
-          add.append(Q[i] * int.from_bytes(m[i][j], byteorder='big'))
+            add.append(Q[i] * int.from_bytes(m[i][j], byteorder='big'))
         MU[j] = sum(add)
 
     final_sigma =[Q[i] * sigmas[i] for i in Q]
@@ -236,42 +248,45 @@ class CPORpriv (PORbase):
     m = proof["data"]
     Q = challenge
     if not MU:
-      return False
+        return False
     else:
-      prf = selectPRF(AES,(kprf, MODE_ECB)) 
-      temp1 = [Q[i] * int.from_bytes(prf.encrypt(self.padding.encode((i+1).to_bytes(1, byteorder='big'))), byteorder='big') for i in Q]
-      temp2 = [alpha[j] * MU[j] for j in range(len(m[0]))]
-      check = sum(temp1) + sum(temp2) 
+        prf = selectPRF(AES,(kprf, MODE_ECB)) 
+        temp1 = [Q[i] * prf_generator((i+1), prf, self.prime) for i in Q]
+        temp2 = [alpha[j] * MU[j] for j in range(len(m[0]))]
+        check = sum(temp1) + sum(temp2) 
 
-      if check == final_sigma:
-        return True
-      else:
-        return False 
+        if check == final_sigma:
+            return True
+        else:
+            return False 
 
 
 if __name__ == "__main__":
-  parser = argparse.ArgumentParser(description ="CPOR-Priv Scheme")
-  parser.add_argument("-v", "--verbose", action ="store_true", 
-            default=False, dest="verbose", 
-            help = "Verbose output") 
-  parser.add_argument("-f", "--filename", action = "store", 
-            dest = "file_name",
-            help = "Path to file, to store and audit.")
-  parser.add_argument ("-c", "--challenger", action = "store_true", 
-            default = False,
-            dest = "challenger", 
-            help = "Act as challenger.")
-  parser.add_argument ("-p", "--prover", action = "store_true", 
-            default = False, dest = "prover", 
-            help = "Act as prover.") 
-  parser.add_argument("-l", "--num_audits",
-            action="store", type=int, 
-            default = 3, dest="num_of_audits", 
-            help = "Number of times to audit (default, 3)")
-  parser.add_argument("-b", "--block_size",
-            action="store", type = int, 
-            default = 4096, dest="block_size", 
-            help ="Block size in bytes (default, 4096)")
-  args = parser.parse_args()
-  pdp = CPORpriv(None) 
-  pdp.start(args)
+    parser = argparse.ArgumentParser(description ="CPOR-Priv Scheme")
+    parser.add_argument("-v", "--verbose", action ="store_true", 
+                        default=False, dest="verbose", 
+                        help = "Verbose output") 
+    parser.add_argument("-f", "--filename", action = "store", 
+                        dest = "file_name",
+                        help = "Path to file, to store and audit.")
+    parser.add_argument("-c", "--challenger", action = "store_true", 
+                        default = False,
+                        dest = "challenger", 
+                        help = "Act as challenger.")
+    parser.add_argument("-p", "--prover", action = "store_true", 
+                        default = False, dest = "prover", 
+                        help = "Act as prover.") 
+    parser.add_argument("-l", "--num_audits",
+                        action="store", type=int, 
+                        default = 3, dest="num_of_audits", 
+                        help = "Number of times to audit (default, 3)")
+    parser.add_argument("-b", "--block_size",
+                        action="store", type = int, 
+                        default = 4096, dest="block_size", 
+                        help ="Block size in bytes (default, 4096)")
+    parser.add_argument("-n", "--num_challenge_blocks",
+                        action="store", type=int, default=512,
+                        dest="num_chal_blocks", help="Blocks per challenge (default, 512)")
+    args = parser.parse_args()
+    pdp = CPORpriv(None) 
+    pdp.start(args)
