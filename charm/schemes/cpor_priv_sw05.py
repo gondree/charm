@@ -10,14 +10,15 @@ CPOR with Private Verificability
 """ 
 from charm.toolbox.pairinggroup import PairingGroup, GT 
 from charm.core.math.pairing import hashPair as sha1 
-from charm.core.math.integer import integer,randomBits,randomPrime,random
+from charm.core.math.integer import integer,randomBits,randomPrime 
+from charm.core.math.integer import random as charm_random
 from charm.core.engine.protocol import * 
 from charm.toolbox.symcrypto import MessageAuthenticator 
 from charm.toolbox.RandSubset import RandSubset 
 from charm.toolbox.POR import PORbase 
 from charm.core.crypto.cryptobase import selectPRF,AES,MODE_ECB
 from charm.toolbox.paddingschemes import PKCS7Padding
-import sys, math, argparse
+import sys, math, argparse, random
 
 def int2bytes(v):
     v, r = divmod(v, 256)
@@ -134,7 +135,7 @@ class CPORpriv (PORbase):
     prf = selectPRF(AES,(kprf, MODE_ECB))
    
     print("Generating alphas...")
-    alpha = [int(integer(random(self.prime))) for i in range(num_sectors)] # a list of random numbers from Zp, |alpha| = num_sectors
+    alpha = [int(integer(charm_random(self.prime))) for i in range(num_sectors)] # a list of random numbers from Zp, |alpha| = num_sectors
 
     filestate = {}
     filestate["num_blocks"] = num_blocks
@@ -172,14 +173,11 @@ class CPORpriv (PORbase):
     num_blocks = filestate["num_blocks"]
     kprf = filestate["kprf"]
     alpha = filestate["alpha"]
-    count = 0
-    #
-    #TODO: Come up with a way to determine how many random numbers to pick
-    #
-    check_set = g.gen(1, (num_blocks - 1))
+
+    check_set = g.gen(random.randint(1, num_blocks), (num_blocks - 1))
     # picks a random amount of blocks to check, making sure the amount of blocks
     # picked are within the num_block range
-    NU =[int(integer(random(self.prime))) for i in range(len(check_set))]
+    NU =[int(integer(charm_random(self.prime))) for i in range(len(check_set))]
 
     Q = dict() # set of group of check_set and their corresponding NU values
 
