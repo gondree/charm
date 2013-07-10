@@ -8,6 +8,7 @@ CPOR with Private Verificability
 :Authors: Mark Gondree and Michael O'Neil 
 :Date: 07/08/2013
 """ 
+from charm.toolbox.securerandom import OpenSSLRand
 from charm.core.math.integer import integer,randomBits,randomPrime 
 from charm.core.math.integer import random as charm_random
 from charm.core.engine.protocol import * 
@@ -42,9 +43,10 @@ def PRF(prf, val, len):
 
 class CPORpriv (PORbase):
     def __init__(self, common_input = None):
-        self.enc_key_len = 1024
-        self.mac_key_len = 1024
-        self.prf_key_len = 256
+        # key length is in bytes
+        self.enc_key_len = 128
+        self.mac_key_len = 128
+        self.prf_key_len = 32
         self.block_size = 4096
         self.lambda_size = 80  # "typically, \lambda = 80"
         # num chal blocks is \ell, "a conservative choice for \ell is \lambda"
@@ -79,8 +81,8 @@ class CPORpriv (PORbase):
         """ 
         print("Generating Keys...") 
         pk, sk = dict(), dict()
-        sk["kmac"] = bytes(int2bytes(randomBits(self.mac_key_len)))
-        sk["kenc"] = bytes(int2bytes(randomBits(self.enc_key_len)))
+        sk["kmac"] = OpenSSLRand().getRandomBytes(self.mac_key_len)
+        sk["kenc"] = OpenSSLRand().getRandomBytes(self.enc_key_len)
         return (pk, sk) 
     
     def tag (self, filename, pk, sk):
@@ -131,7 +133,7 @@ class CPORpriv (PORbase):
         # and store these with the prover;
     
         # generating Pseudo Random Function key
-        kprf = bytes(int2bytes(randomBits(self.prf_key_len)))
+        kprf = OpenSSLRand().getRandomBytes(self.prf_key_len)
         prf = selectPRF(AES,(kprf, MODE_ECB))
     
         # generating alphas
