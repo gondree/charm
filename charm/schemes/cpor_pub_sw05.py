@@ -4,13 +4,11 @@ CPOR with Public Verificability
 
 | From paper: Compact Proofs of Retrievavility
 | Published in: ASIACRYPT 2005
+| By: Hovav Shacham and Brent Waters
 
 :Authors: Mark Gondree and Michael O'Neil
 :Date: 07/24/2013
 """
-#from charm.core.math.integer import integer,randomBits,randomPrime 
-#from charm.core.math.integer import randomPrime
-#from charm.core.math.integer import random as charm_random
 from charm.core.math.pairing import order
 from charm.core.engine.protocol import *
 from charm.toolbox.RandSubset import RandSubset
@@ -37,7 +35,6 @@ class CPORpriv (PORbase):
         self.num_challenge_blocks = self.lambda_size
         self.sector_size = (self.lambda_size - 1) / 8  # sectors live in Z_p
         self.group = PairingGroup('MNT224')
-        self.generator = self.group.random(G2)
 
     def set_attributes(self, args):
         """ 
@@ -60,17 +57,15 @@ class CPORpriv (PORbase):
         pk, sk = dict(), dict()
         # sigkey = [Some function returning a signing pub key and a signing priv key]
 
-        print(type(self.group))
-        print("Generating Alpha...")
+        generator = self.group.random(G2)
         alpha = self.group.random(ZR) 
-
-        print("Generating Vee...")
-        vee = self.generator ** alpha
+        vee = generator ** alpha
 
         # sk["key"] = sigkey[priv]
         sk["alpha"] = alpha
         # pk["key"] = sigkey[pub]
         pk["vee"] = vee
+        pk["g"] = generator
         return (pk, sk) 
     
     def tag (self, filename, pk, sk):
@@ -109,7 +104,7 @@ class CPORpriv (PORbase):
             while block:
                 # parse out the sectors
                 sectors = bytearray(block)
-                for j in range(int(num_sectors)):
+                for j in range(num_sectors):
                     jstart = j * self.sector_size
                     jend = jstart + min(self.sector_size - 1, len (sectors) - jstart)
                     m[i].append(bytes(sectors[int(jstart):int(jend)]))
@@ -117,7 +112,7 @@ class CPORpriv (PORbase):
                 i = i + 1
         
         # name picked from a large domain like ZR
-        name = self.group.random(ZR)
+        name = self.group.hash(filename, ZR)
         
         # Size of U is num_sectors
         u = [self.group.random(G1) for i in range(num_sectors)]
@@ -131,7 +126,6 @@ class CPORpriv (PORbase):
             ctxt = name + i
             # Hashes the ctxt as a G1 group memeber
             sigmas.append((self.group.hash(str(ctxt), G1) * temp) ** alpha)
-        print("Sigma length:", len(sigmas))
 
         filestate, data = {}, {}
         filestate["num_blocks"] = num_blocks
@@ -160,17 +154,13 @@ class CPORpriv (PORbase):
     
         # a set of num_chal block indices
         check_set = g.gen(num_chal, (num_blocks - 1))
-        print("Created Check_set")
 
         # for each index, generate a random \nu in Z_p
         NU =[self.group.random(ZR) for i in range(len(check_set))] 
-        print("Created NU")
 
         Q = {}
         for i in range(len(check_set)):
             Q[check_set[i]] = NU[i]
-        print("Filled Q")
-        print("Q length:", len(Q))
         
         challenge = Q
         chalData = {}
@@ -223,6 +213,7 @@ class CPORpriv (PORbase):
         m = proof["data"]
         Q = challenge
         vee = pk["vee"]
+        g = pk["g"]
     
         if not MU:
             return False
@@ -244,7 +235,7 @@ class CPORpriv (PORbase):
 
         # To work with the PairingGroup, the values need to be of
         # an asymetrical bilinear map.
-        if pair(final_sigma, self.generator) == pair(total, vee):
+        if pair(final_sigma, g) == pair(total, vee):
             return True
         return False
     
