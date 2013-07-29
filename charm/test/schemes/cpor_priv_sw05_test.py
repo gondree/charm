@@ -86,11 +86,24 @@ class WrapperTest(unittest.TestCase):
 
 
 class TestBasic(WrapperTest):
-    
+
+    skip = os.environ.get("Do_Long_Test", "False")    
+
     def test_fraction_blocks(self):
         params = {}
         blocksize = PDP['blocksize']
-        for num in [0.5, 1, 2, 2.5, 3.5]:
+        for num in [0.5]:
+            self.fillFile(int(num*blocksize))
+            cargs = ["-f", self.path, "-l", "1", "-b", str(blocksize)]
+            params['filename'] = self.path
+            self.output_test(cargs, [], **params)
+            self.emptyFile()
+
+    @unittest.skipIf(skip == "False", "Expediting the testing process...")
+    def test_fraction_blocks_continued(self):
+        params = {}
+        blocksize = PDP['blocksize']
+        for num in [1, 2, 2.5, 3.5]:
             self.fillFile(int(num*blocksize))
             cargs = ["-f", self.path, "-l", "1", "-b", str(blocksize)]
             params['filename'] = self.path
@@ -101,27 +114,52 @@ class TestBasic(WrapperTest):
         params = {}
         blocksize = PDP['blocksize']
         challenges = PDP['challenges']
-        for num in [0.5*challenges, 2*challenges, 5*challenges]:
+        for num in [0.5*challenges]:
             self.fillFile(int(num*blocksize))
             cargs = ["-f", self.path, "-l", "1", "-v"]
             params['filename'] = self.path
             params['blocksize'] = blocksize
             self.output_test(cargs, [], **params)
             self.emptyFile()
-        
+
+    @unittest.skipIf(skip == "False", "Expediting the testing process...")
+    def test_many_blocks_continued(self):
+        params = {}
+        blocksize = PDP['blocksize']
+        challenges = DPD['challenges']
+        for num in [2*challenges, 5*challenges]:
+            self.fillFile(int(num*blocksize))
+            cargs = ["-f", self.path, "-l", "1", "-v"]
+            params['filename'] = self.path
+            params['blocksize'] = blocksize
+            self.output_test(cargs, [], **params)
+            self.emptyFile()
+
     def test_block_size(self):
         params = {}        
-        for num in [1024, 2048, 4096]:
+        for num in [1024]:
             self.fillFile(int(num*PDP['challenges']))
             cargs = ["-f", self.path, "-l", "1", "-b", str(num), "-v"]
             params['filename'] = self.path
             params['blocksize'] = num
             self.output_test(cargs, [], **params)
             self.emptyFile()   
+
+    @unittest.skipIf(skip == "False", "Expediting the testing process...")
+    def test_block_size_continued(self):
+        params = {}
+        for num in [2048, 4096]:
+            self.fillFile(int(num*PDP['challenges']))
+            cargs = ["-f", self.path, "-l", "1", "-b", str(num), "-v"]
+            params['filename'] = self.path
+            params['blocksize'] = num
+            self.output_test(cargs, [], **params)
+            self.emptyFile()
+        
           
     def test_num_of_challenge(self):
         params = {}        
-        for num in [300, 460, 500]:
+        for num in [300]:
             self.fillFile(int(num*PDP['blocksize']))
             cargs = ["-f", self.path, "-l", "1", "-n", str(num), "-v"]
             params['filename'] = self.path
@@ -129,9 +167,20 @@ class TestBasic(WrapperTest):
             self.output_test(cargs, [], **params)
             self.emptyFile()   
                        
+    @unittest.skipIf(skip == "False", "Expediting the testing process...")
+    def test_num_of_challenge_continued(self):
+        params = {}        
+        for num in [460, 500]:
+            self.fillFile(int(num*PDP['blocksize']))
+            cargs = ["-f", self.path, "-l", "1", "-n", str(num), "-v"]
+            params['filename'] = self.path
+            params['chal_blocks'] = num
+            self.output_test(cargs, [], **params)
+            self.emptyFile()   
+
     def test_number_of_audits(self):
         params = {}        
-        for num in [1, 2, 5, 7]:
+        for num in [1]:
             self.fillFile(int(PDP['blocksize']))
             cargs = ["-f", self.path, "-l", str(num), "-v"]
             params['filename'] = self.path
@@ -139,6 +188,17 @@ class TestBasic(WrapperTest):
             self.output_test(cargs, [], **params)
             self.emptyFile() 
                          
+    @unittest.skipIf(skip == "False", "Expediting the testing process...")
+    def test_number_of_audits_continued(self):
+        params = {}        
+        for num in [2, 5, 7]:
+            self.fillFile(int(PDP['blocksize']))
+            cargs = ["-f", self.path, "-l", str(num), "-v"]
+            params['filename'] = self.path
+            params['audits'] = num
+            self.output_test(cargs, [], **params)
+            self.emptyFile() 
+
 ###############################################################################
 #
 # Main
