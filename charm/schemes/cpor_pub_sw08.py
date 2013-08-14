@@ -24,7 +24,7 @@ def int2bytes(v):
     for r in int2bytes(v):
         yield r
 
-class CPORpriv (PORbase):
+class CPORpub (PORbase):
     def __init__(self, common_input = None):
         PORbase.__init__(self, common_input)
         self.block_size = 4096
@@ -252,7 +252,7 @@ class CPORpriv (PORbase):
     
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description ="CPOR-Priv Scheme")
+    parser = argparse.ArgumentParser(description ="CPOR-Pub Scheme")
     parser.add_argument("-v", "--verbose", action ="store_true", 
                         default=False, dest="verbose", 
                         help = "Verbose output") 
@@ -278,5 +278,5 @@ if __name__ == "__main__":
                         action="store", type=int, default=512,
                         dest="num_chal_blocks", help="Blocks per challenge (default, 512)")
     args = parser.parse_args()
-    pdp = CPORpriv(None) 
+    pdp = CPORpub(None) 
     pdp.start(args)
