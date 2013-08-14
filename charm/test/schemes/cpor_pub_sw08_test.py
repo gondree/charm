@@ -11,7 +11,7 @@ from subprocess import PIPE
 
 PDP = {"blocksize":4096, "challenges":512} # default params
 TESTFILES = "/tmp/" # location of files for testing
-BIN = os.path.dirname(os.path.abspath(__file__))+"/../../schemes/cpor_pub_sw05.py"
+BIN = os.path.dirname(os.path.abspath(__file__))+"/../../schemes/cpor_pub_sw08.py"
 
 class WrapperTest(unittest.TestCase):
 
@@ -115,7 +115,7 @@ class TestBasic(WrapperTest):
         blocksize = PDP['blocksize']
         challenges = PDP['challenges']
         for num in [0.5*challenges]:
-            self.fillFile(int(num*blocksize))
+            self.fillFile(int(blocksize))
             cargs = ["-f", self.path, "-l", "1", "-v"]
             params['filename'] = self.path
             params['blocksize'] = blocksize
@@ -138,7 +138,7 @@ class TestBasic(WrapperTest):
     def test_block_size(self):
         params = {}        
         for num in [1024]:
-            self.fillFile(int(num*PDP['challenges']))
+            self.fillFile(int(num))
             cargs = ["-f", self.path, "-l", "1", "-b", str(num), "-v"]
             params['filename'] = self.path
             params['blocksize'] = num
@@ -160,7 +160,7 @@ class TestBasic(WrapperTest):
     def test_num_of_challenge(self):
         params = {}        
         for num in [300]:
-            self.fillFile(int(num*PDP['blocksize']))
+            self.fillFile(int(PDP['blocksize']))
             cargs = ["-f", self.path, "-l", "1", "-n", str(num), "-v"]
             params['filename'] = self.path
             params['chal_blocks'] = num

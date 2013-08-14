@@ -11,7 +11,7 @@ from subprocess import PIPE
 
 PDP = {"blocksize":4096, "challenges":512} # default params
 TESTFILES = "/tmp/" # location of files for testing
-BIN = os.path.dirname(os.path.abspath(__file__))+"/../../schemes/cpor_priv_sw05.py"
+BIN = os.path.dirname(os.path.abspath(__file__))+"/../../schemes/cpor_priv_sw08.py"
 
 class WrapperTest(unittest.TestCase):
 
