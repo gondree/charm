@@ -1,17 +1,17 @@
 """
-Unit Test for MAC-PDP scheme
+Unit Test for CPOR scheme
 
-:Authors: Krisztina Riebel-Charity and Mark Gondree
-:Date:    05/31/2013
+:Authors: 
+:Date:    
 """
 import unittest, subprocess, tempfile
 import re, glob, os, logging, sys, time
 from optparse import OptionParser
 from subprocess import PIPE
 
-MACPDP = {"blocksize":4096, "challenges":460} # default params for MAC-PDP
+PDP = {"blocksize":4096, "challenges":512} # default params
 TESTFILES = "/tmp/" # location of files for testing
-BIN = os.path.dirname(os.path.abspath(__file__))+"/../../schemes/macpdp.py"
+BIN = os.path.dirname(os.path.abspath(__file__))+"/../../schemes/cpor_pub_sw08.py"
 
 class WrapperTest(unittest.TestCase):
 
@@ -50,10 +50,11 @@ class WrapperTest(unittest.TestCase):
         q.wait()
 
         print(out1, out2, err1, err2)
-        self.assertEqual(err1, b'',
-            "expected empty stderr for prover, got:\n%s" % (err1))
+
         self.assertEqual(err2, b'',
             "expected empty stderr for challenger, got:\n%s" % (err2))
+        self.assertEqual(err1, b'',
+            "expected empty stderr for prover, got:\n%s" % (err1))
         self.assertEqual(p.returncode, 0,
             "expected 0 for prover returncode, got %s" % (p.returncode))
         self.assertEqual(q.returncode, 0,
@@ -65,7 +66,7 @@ class WrapperTest(unittest.TestCase):
                 "audited %d times instead of %d" % (num, kwargs['audits']))
 
         fsize = os.path.getsize(kwargs['filename'])
-        bsize = MACPDP['blocksize']
+        bsize = PDP['blocksize']
         if 'blocksize' in kwargs:
             bsize = kwargs['blocksize']
         total_blocks = int(round(float(fsize) / bsize))
@@ -86,119 +87,101 @@ class WrapperTest(unittest.TestCase):
 
 class TestBasic(WrapperTest):
 
-    skip = os.environ.get("Do_Long_Test", "False")
-    
+    skip = os.environ.get("Do_Long_Test", "False")    
+
     def test_fraction_blocks(self):
         params = {}
-        blocksize = MACPDP['blocksize']
+        blocksize = PDP['blocksize']
         for num in [0.5]:
             self.fillFile(int(num*blocksize))
             cargs = ["-f", self.path, "-l", "1", "-b", str(blocksize)]
             params['filename'] = self.path
             self.output_test(cargs, [], **params)
             self.emptyFile()
-                
+
     @unittest.skipIf(skip == "False", "Expediting the testing process...")
     def test_fraction_blocks_continued(self):
         params = {}
-        blocksize = MACPDP['blocksize']
+        blocksize = PDP['blocksize']
         for num in [1, 2, 2.5, 3.5]:
             self.fillFile(int(num*blocksize))
             cargs = ["-f", self.path, "-l", "1", "-b", str(blocksize)]
             params['filename'] = self.path
             self.output_test(cargs, [], **params)
             self.emptyFile()
-
+                
     def test_many_blocks(self):
         params = {}
-        blocksize = MACPDP['blocksize']
-        challenges = MACPDP['challenges']
+        blocksize = PDP['blocksize']
+        challenges = PDP['challenges']
         for num in [0.5*challenges]:
+            self.fillFile(int(blocksize))
+            cargs = ["-f", self.path, "-l", "1", "-v"]
+            params['filename'] = self.path
+            params['blocksize'] = blocksize
+            self.output_test(cargs, [], **params)
+            self.emptyFile()
+
+    @unittest.skipIf(skip == "False", "Expediting the testing process...")
+    def test_many_blocks_continued(self):
+        params = {}
+        blocksize = PDP['blocksize']
+        challenges = DPD['challenges']
+        for num in [2*challenges, 5*challenges]:
             self.fillFile(int(num*blocksize))
             cargs = ["-f", self.path, "-l", "1", "-v"]
             params['filename'] = self.path
             params['blocksize'] = blocksize
             self.output_test(cargs, [], **params)
             self.emptyFile()
-        
-    @unittest.skipIf(skip == "False", "Expediting the testing process...")
-    def test_many_blocks_continued(self):
-        params = {}
-        blocksize = MACPDP['blocksize']
-        challenges = MACPDP['challenges']
-        for num in [2*challenges, 5*challenges]:
-            self.fillFile(int(num*blocksize))
-            cargs = ["-f", self.path, "-l", "1", "-v"]
-            params['filename'] = self.path
-            params['blocksize'] = blocksize
 
     def test_block_size(self):
         params = {}        
         for num in [1024]:
-            self.fillFile(int(num*MACPDP['challenges']))
-            cargs = ["-f", self.path, "-l", "1", "-b", str(num), "-v"]
-            params['filename'] = self.path
-            params['blocksize'] = num
-            self.output_test(cargs, [], **params)
-            self.emptyFile()   
-          
-    @unittest.skipIf(skip == "False", "Expediting the testing process...")
-    def test_block_size_continued(self):
-        params = {}        
-        for num in [2048, 4096]:
-            self.fillFile(int(num*MACPDP['challenges']))
+            self.fillFile(int(num))
             cargs = ["-f", self.path, "-l", "1", "-b", str(num), "-v"]
             params['filename'] = self.path
             params['blocksize'] = num
             self.output_test(cargs, [], **params)
             self.emptyFile()   
 
+    @unittest.skipIf(skip == "False", "Expediting the testing process...")
+    def test_block_size_continued(self):
+        params = {}
+        for num in [2048, 4096]:
+            self.fillFile(int(num*PDP['challenges']))
+            cargs = ["-f", self.path, "-l", "1", "-b", str(num), "-v"]
+            params['filename'] = self.path
+            params['blocksize'] = num
+            self.output_test(cargs, [], **params)
+            self.emptyFile()
+        
+          
     def test_num_of_challenge(self):
         params = {}        
         for num in [300]:
-            self.fillFile(int(num*MACPDP['blocksize']))
+            self.fillFile(int(PDP['blocksize']))
             cargs = ["-f", self.path, "-l", "1", "-n", str(num), "-v"]
             params['filename'] = self.path
             params['chal_blocks'] = num
             self.output_test(cargs, [], **params)
             self.emptyFile()   
-    
-    @unittest.skipIf(skip == "False", "Expediting the testing process...")                   
+                       
+    @unittest.skipIf(skip == "False", "Expediting the testing process...")
     def test_num_of_challenge_continued(self):
         params = {}        
         for num in [460, 500]:
-            self.fillFile(int(num*MACPDP['blocksize']))
+            self.fillFile(int(num*PDP['blocksize']))
             cargs = ["-f", self.path, "-l", "1", "-n", str(num), "-v"]
             params['filename'] = self.path
             params['chal_blocks'] = num
-            self.output_test(cargs, [], **params)
-            self.emptyFile()   
-
-    def test_key_length(self):
-        params = {}        
-        for num in [1024]:
-            self.fillFile(int(num*MACPDP['challenges']))
-            cargs = ["-f", self.path, "-l", "1", "-k", str(num)]
-            params['filename'] = self.path
-            params['keylen'] = num
-            self.output_test(cargs, [], **params)
-            self.emptyFile()   
-                        
-    @unittest.skipIf(skip == "False", "Expediting the testing process...")
-    def test_key_length_continued(self):
-        params = {}        
-        for num in [512, 256]:
-            self.fillFile(int(num*MACPDP['challenges']))
-            cargs = ["-f", self.path, "-l", "1", "-k", str(num)]
-            params['filename'] = self.path
-            params['keylen'] = num
             self.output_test(cargs, [], **params)
             self.emptyFile()   
 
     def test_number_of_audits(self):
         params = {}        
         for num in [1]:
-            self.fillFile(int(MACPDP['blocksize']))
+            self.fillFile(int(PDP['blocksize']))
             cargs = ["-f", self.path, "-l", str(num), "-v"]
             params['filename'] = self.path
             params['audits'] = num
@@ -209,7 +192,7 @@ class TestBasic(WrapperTest):
     def test_number_of_audits_continued(self):
         params = {}        
         for num in [2, 5, 7]:
-            self.fillFile(int(MACPDP['blocksize']))
+            self.fillFile(int(PDP['blocksize']))
             cargs = ["-f", self.path, "-l", str(num), "-v"]
             params['filename'] = self.path
             params['audits'] = num
@@ -221,7 +204,6 @@ class TestBasic(WrapperTest):
 # Main
 #
 if __name__=="__main__":
-    print("--------> Testing '%s'" % ("MAC-PDP"))
     unittest.main()
     exit(0);
 
